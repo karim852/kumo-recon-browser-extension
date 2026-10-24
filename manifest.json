@@ -1,0 +1,56 @@
+{
+  "manifest_version": 3,
+  "name": "Kumo \u8718\u86db \u2014 Domain Recon",
+  "short_name": "Kumo",
+  "version": "1.0.0",
+  "description": "Point 25 recon modules at the tab you're on. DNS, certificates, tech fingerprints, exposed paths and 358 vulnerability checks, all in your browser.",
+  "author": "k0r1m",
+  "homepage_url": "https://demo-kumo-kage.vercel.app/",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Kumo \u2014 scan this domain",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "storage",
+    "contextMenus",
+    "alarms",
+    "cookies"
+  ],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+K"
+      },
+      "description": "Open Kumo for the current tab"
+    }
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ]
+}

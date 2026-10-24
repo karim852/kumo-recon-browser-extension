@@ -1,0 +1,52 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build both packages
+        run: ./build.sh
+
+      # Mozilla's own validator. Errors here mean AMO would reject the upload,
+      # so catch it in CI rather than at submission time.
+      - name: Lint the Firefox build
+        run: npx --yes web-ext lint --source-dir=build/firefox
+
+      - name: Check every module still parses
+        run: |
+          for f in $(find src -name '*.js'); do
+            node --experimental-vm-modules -e "
+              const fs=require('fs'), vm=require('vm');
+              new vm.SourceTextModule(fs.readFileSync('$f','utf8'),{identifier:'$f'});
+            " || exit 1
+          done
+
+      # The engine must never attach the user's cookies to a scan.
+      - name: Assert requests stay credential-free
+        run: |
+          grep -q "credentials: 'omit'" src/engine/http.js
+          ! grep -rn "credentials: *'include'" src/ || exit 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: dist/*.zip
+
+      - name: Attach packages to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip

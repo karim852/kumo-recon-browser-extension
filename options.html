@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en" data-v="void">
+<head>
+<meta charset="utf-8">
+<title>Kumo — settings</title>
+<link rel="stylesheet" href="src/theme.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:
+    radial-gradient(900px 480px at 18% -4%, rgba(var(--glow-rgb),.13), transparent 70%),
+    radial-gradient(700px 420px at 92% 104%, rgba(var(--glow-rgb),.09), transparent 70%),
+    var(--bg);
+  background-attachment:fixed;color:var(--text);font-family:var(--font-sans);
+  min-height:100vh;padding:48px 24px;font-size:14px;
+}
+.wrap{max-width:620px;margin:0 auto}
+header{display:flex;align-items:center;gap:14px;margin-bottom:30px}
+.mark{width:46px;height:46px;flex-shrink:0;color:rgb(var(--glow-rgb));filter:drop-shadow(0 0 14px rgba(var(--glow-rgb),.55))}
+h1{font-family:var(--font-mono);font-size:19px;font-weight:700;letter-spacing:4px;color:#fff}
+h1 em{font-style:normal;color:rgb(var(--glow-rgb))}
+.sub{font-family:var(--font-mono);font-size:10px;color:var(--text3);letter-spacing:1px;margin-top:3px}
+.panel{
+  background:var(--panel-bg);border:1px solid var(--border);border-radius:var(--card-r);
+  padding:20px 22px;margin-bottom:14px;
+}
+.panel h2{
+  font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:1.5px;
+  color:var(--text3);margin-bottom:14px;text-transform:uppercase;
+}
+.field{margin-bottom:16px}
+.field:last-child{margin-bottom:0}
+label{display:block;font-size:12px;color:var(--text);margin-bottom:5px;font-weight:500}
+.hint{font-size:11px;color:var(--text3);line-height:1.55;margin-top:5px}
+.hint code{font-family:var(--font-mono);font-size:10.5px;color:var(--cyan);
+  background:var(--bg3);border:1px solid var(--border);padding:1px 5px;border-radius:4px}
+input[type=text]{
+  width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--input-r);
+  padding:10px 12px;color:var(--text);font-family:var(--font-mono);font-size:12px;outline:none;
+  transition:border-color .18s,box-shadow .18s;
+}
+input[type=text]:focus{border-color:rgb(var(--glow-rgb));
+  box-shadow:0 0 0 3px rgba(var(--glow-rgb),.13)}
+.check{display:flex;align-items:flex-start;gap:9px;cursor:pointer}
+.check input{margin-top:2px;accent-color:rgb(var(--glow-rgb));width:14px;height:14px;cursor:pointer}
+.check span{font-size:12px;color:var(--text)}
+.row{display:flex;align-items:center;gap:10px}
+.btn{
+  font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.8px;
+  border-radius:var(--btn-r);padding:10px 18px;border:1px solid transparent;cursor:pointer;
+}
+.btn-p{background:linear-gradient(180deg,rgb(var(--glow-rgb)),color-mix(in srgb,rgb(var(--glow-rgb)) 72%,#000));
+  color:#04070e;box-shadow:0 0 18px -5px rgba(var(--glow-rgb),.7)}
+.btn-g{background:var(--bg3);border-color:var(--border2);color:var(--text2)}
+.btn-g:hover{border-color:var(--border3);color:var(--text)}
+.status{font-family:var(--font-mono);font-size:11px;color:var(--green);opacity:0;transition:opacity .2s}
+.status.on{opacity:1}
+.status.bad{color:var(--red)}
+.theme-row{display:flex;align-items:center;gap:10px}
+.theme-name{font-family:var(--font-mono);font-size:11px;color:var(--text2);letter-spacing:1px}
+footer{text-align:center;font-family:var(--font-mono);font-size:10px;color:var(--text3);margin-top:26px}
+footer a{color:var(--text3)}
+footer a:hover{color:var(--cyan)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <svg class="mark" viewBox="0 0 48 48" aria-hidden="true">
+    <g fill="none" stroke="currentColor" stroke-linecap="round">
+      <g opacity=".45" stroke-width="1.1">
+        <path d="M24 24 24 5M24 24 37.4 10.6M24 24 43 24M24 24 37.4 37.4M24 24 24 43M24 24 10.6 37.4M24 24 5 24M24 24 10.6 10.6"/>
+      </g>
+      <g opacity=".55" stroke-width="1.2">
+        <path d="M24 9.3Q28.6 12.1 30.6 17.4Q36 19.4 38.7 24Q36 28.6 30.6 30.6Q28.6 36 24 38.7Q19.4 36 17.4 30.6Q12 28.6 9.3 24Q12 19.4 17.4 17.4Q19.4 12.1 24 9.3Z"/>
+      </g>
+      <g stroke-width="1.5">
+        <path d="M24 14.6Q27.2 16.5 28.6 19.4Q31.5 20.8 33.4 24Q31.5 27.2 28.6 28.6Q27.2 31.5 24 33.4Q20.8 31.5 19.4 28.6Q16.5 27.2 14.6 24Q16.5 20.8 19.4 19.4Q20.8 16.5 24 14.6Z"/>
+      </g>
+    </g>
+    <circle cx="24" cy="24" r="2.4" fill="var(--text)"/>
+  </svg>
+    <div>
+      <h1>KUM<em>O</em></h1>
+      <div class="sub">蜘蛛 · extension settings</div>
+    </div>
+  </header>
+
+  <section class="panel">
+    <h2>Scanning</h2>
+    <div class="field">
+      <label for="concurrency">Parallel requests</label>
+      <input type="text" id="concurrency" spellcheck="false" placeholder="6">
+      <div class="hint">
+        How many requests Kumo keeps in flight against a target. Lower is gentler and
+        less likely to trip a WAF or rate limiter; higher finishes sooner. 6 is a
+        sensible default, 2&ndash;3 for anything fragile.
+      </div>
+    </div>
+    <div class="field">
+      <label for="delayMs">Delay between requests (ms)</label>
+      <input type="text" id="delayMs" spellcheck="false" placeholder="60">
+      <div class="hint">A pause between request starts, so a scan trickles rather than bursts.</div>
+    </div>
+    <div class="hint" style="margin-top:4px">
+      Network access is granted when the extension is installed, so Kumo never
+      interrupts a scan to ask for permission.
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Behaviour</h2>
+    <div class="field">
+      <label class="check"><input type="checkbox" id="autofill">
+        <span>Pre-fill the target with the active tab's domain</span></label>
+    </div>
+    <div class="field">
+      <label class="check"><input type="checkbox" id="badge">
+        <span>Show the worst-severity count on the toolbar icon</span></label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Appearance</h2>
+    <div class="theme-row">
+      <div class="theme-pick" role="group" aria-label="Theme">
+        <button class="theme-dot td-void"   data-theme="void"   title="Void" aria-pressed="true"></button>
+        <button class="theme-dot td-glass"  data-theme="glass"  title="Void Glass" aria-pressed="false"></button>
+        <button class="theme-dot td-web"    data-theme="web"    title="Web 蜘蛛" aria-pressed="false"></button>
+        <button class="theme-dot td-carbon" data-theme="carbon" title="Carbon" aria-pressed="false"></button>
+      </div>
+      <span class="theme-name" id="themeName">VOID</span>
+    </div>
+    <div class="hint">The same four palettes as the Kumo dashboard. Applies to the popup too.</div>
+  </section>
+
+  <div class="row">
+    <button class="btn btn-p" id="save">SAVE</button>
+    <button class="btn btn-g" id="reset">RESET TO DEFAULTS</button>
+    <span class="status" id="saveStatus">saved</span>
+  </div>
+
+  <footer>
+    Kumo 蜘蛛 v2.0 · <a href="https://github.com/karim852/KUMO-Domain-Recon-Tool" target="_blank">github.com/karim852/KUMO-Domain-Recon-Tool</a>
+  </footer>
+
+</div>
+<script type="module" src="src/options.js"></script>
+</body>
+</html>

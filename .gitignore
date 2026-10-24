@@ -1,0 +1,15 @@
+# build output
+build/
+dist/
+*.zip
+*.xpi
+
+# never commit a signing key
+*.pem
+*.crx
+
+node_modules/
+.DS_Store
+__pycache__/
+*.pyc
+web-ext-artifacts/

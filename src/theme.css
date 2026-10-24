@@ -1,0 +1,103 @@
+/* ════════════════════════════════════════════════════════════
+   KUMO THEME SYSTEM — ported verbatim from the web dashboard.
+   4 variants, switchable at runtime, persisted in chrome.storage.
+   Palette lives in [data-v] blocks on <html>; structural tokens
+   stay on :root. The -dim tokens derive with color-mix so they
+   track whichever palette is active.
+   ════════════════════════════════════════════════════════════ */
+:root{
+  color-scheme: dark;
+
+  /* ── VOID (default) — deepest navy, cyan bloom, flat surfaces ── */
+  --bg:#03050b;--bg2:#070c16;--bg3:#0c1322;--bg4:#121b2e;
+  --border:#18213a;--border2:#25314f;--border3:#33436b;
+  --text:#d4dce8;--text2:#7788a3;--text3:#465064;
+  --green:#3ddc84;--green2:#2aab68;
+  --red:#ff5f57;--yellow:#e3b341;--cyan:#5cb0ff;--purple:#bc8cff;
+  --orange:#ffa657;--pink:#ff7b72;
+  --glow-rgb:92,176,255;
+  --card-r:10px;--glow-o:.42;--glow-blur:22px;
+
+  --card-bg:var(--bg2);--card-edge:var(--border);
+  --head-bg:linear-gradient(180deg,var(--bg4),var(--bg3));
+  --head-line:var(--border);--panel-bg:var(--bg2);
+  --btn-r:var(--input-r);--prog-h:2px;
+
+  /* structural — shared by every variant */
+  --input-r:8px;
+  --font-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --font-sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+
+  --green-dim:color-mix(in srgb,var(--green) 10%,transparent);
+  --red-dim:color-mix(in srgb,var(--red) 10%,transparent);
+  --yellow-dim:color-mix(in srgb,var(--yellow) 10%,transparent);
+  --cyan-dim:color-mix(in srgb,var(--cyan) 10%,transparent);
+  --purple-dim:color-mix(in srgb,var(--purple) 10%,transparent);
+}
+
+/* ── VOID GLASS — lit top-left corner, light seam, under-glow ── */
+[data-v="glass"]{
+  --bg:#04080d;--bg2:#08101a;--bg3:#0d1724;--bg4:#132033;
+  --border:#172536;--border2:#22364d;--border3:#2f4a68;
+  --text:#dbe6f0;--text2:#8398ad;--text3:#4d5f72;
+  --green:#3ddc84;--green2:#2aab68;
+  --red:#ff5f57;--yellow:#e3b341;--cyan:#4fb3ff;--purple:#bc8cff;
+  --glow-rgb:64,168,255;
+  --card-r:14px;--glow-o:.45;--glow-blur:24px;
+  --card-bg:
+    radial-gradient(55% 2px at 50% 100%, rgba(var(--glow-rgb),.95), transparent) no-repeat bottom / 100% 2px,
+    linear-gradient(160deg,rgba(130,180,230,.075),rgba(130,180,230,.015) 42%,rgba(0,0,0,.25)),
+    var(--bg2);
+  --card-edge:rgba(120,170,220,.13);
+  --head-bg:transparent;
+  --head-line:rgba(120,170,220,.08);
+  --panel-bg:linear-gradient(165deg,rgba(120,170,220,.05),rgba(0,0,0,0) 40%),var(--bg2);
+  --btn-r:999px;--prog-h:3px;
+}
+
+/* ── WEB 蜘蛛 — violet, strongest glow ── */
+[data-v="web"]{
+  --bg:#05030e;--bg2:#0a0719;--bg3:#110c27;--bg4:#181035;
+  --border:#261b47;--border2:#372763;--border3:#4d3886;
+  --text:#e0d8f0;--text2:#9384b5;--text3:#57496f;
+  --green:#4dffa6;--green2:#2fd888;
+  --red:#ff6b81;--yellow:#ffcf5c;--cyan:#b98cff;--purple:#d9b3ff;
+  --glow-rgb:199,146,255;
+  --card-r:10px;--glow-o:.5;--glow-blur:26px;
+  --card-bg:var(--bg2);--card-edge:var(--border);
+  --head-bg:linear-gradient(180deg,var(--bg4),var(--bg3));
+  --head-line:var(--border);--panel-bg:var(--bg2);
+  --btn-r:var(--input-r);--prog-h:2px;
+}
+
+/* ── CARBON — neutral, restrained; best for client screenshots ── */
+[data-v="carbon"]{
+  --bg:#050607;--bg2:#0a0c0f;--bg3:#101418;--bg4:#171c22;
+  --border:#1e242b;--border2:#2b333c;--border3:#3b4550;
+  --text:#d6dade;--text2:#828c96;--text3:#4d565f;
+  --green:#3ddc84;--green2:#2aab68;
+  --red:#f85149;--yellow:#e3b341;--cyan:#58a6ff;--purple:#bc8cff;
+  --glow-rgb:88,166,255;
+  --card-r:10px;--glow-o:.26;--glow-blur:16px;
+  --card-bg:var(--bg2);--card-edge:var(--border);
+  --head-bg:linear-gradient(180deg,var(--bg4),var(--bg3));
+  --head-line:var(--border);--panel-bg:var(--bg2);
+  --btn-r:var(--input-r);--prog-h:2px;
+}
+
+/* ── theme dots (shared by popup + options) ── */
+.theme-pick{display:flex;align-items:center;gap:5px}
+.theme-dot{width:15px;height:15px;border-radius:50%;cursor:pointer;padding:0;
+  border:1px solid var(--border2);transition:transform .14s,border-color .14s,box-shadow .14s}
+.theme-dot:hover{transform:scale(1.16);border-color:var(--border3)}
+.theme-dot[aria-pressed="true"]{border-color:#fff;
+  box-shadow:0 0 0 2px var(--bg),0 0 0 3px rgba(var(--glow-rgb),.9),0 0 12px rgba(var(--glow-rgb),.7)}
+.theme-dot:focus-visible{outline:2px solid rgb(var(--glow-rgb));outline-offset:3px}
+.td-void  {background:radial-gradient(circle at 32% 28%,#5cb0ff,#070c16 70%)}
+.td-glass {background:radial-gradient(circle at 32% 28%,#8fd0ff,#0d1724 72%)}
+.td-web   {background:radial-gradient(circle at 32% 28%,#c792ff,#0a0719 70%)}
+.td-carbon{background:radial-gradient(circle at 32% 28%,#8b949e,#0a0c0f 70%)}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
