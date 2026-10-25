@@ -19,9 +19,11 @@
    ════════════════════════════════════════════════════════════ */
 
 import { DATA } from './data/tables.js';
-import { request, getJSON, mapLimit, dnsQuery } from './http.js';
+import { request, getJSON, mapLimit, dnsQuery, ensureScheme, schemeFor } from './http.js';
 
-const base = d => `https://${d}`;
+/* The scheme is resolved once per domain by http.js's ensureScheme, which
+   tries https then http -- engine.py's _cms_get does the same. */
+const base = d => `${schemeFor(d)}://${d}`;
 const rx = (p, f) => { try { return new RegExp(p, f); } catch { return null; } };
 const cmsName = c => (DATA.CMS_NAMES || {})[c] || (c || '');
 
@@ -78,14 +80,14 @@ function detect(body, headers) {
 }
 
 /* ── version ────────────────────────────────────────────────── */
-async function readVersion(domain, cms, home, signal) {
+async function readVersion(domain, cms, home, signal, B) {
   for (const [path, pattern] of (DATA.CMS_VERSION_SOURCES || {})[cms] || []) {
     let body;
     if (path === '/' && home) {
       body = home.body || '';
     } else {
       try {
-        const r = await request(base(domain) + path, { signal, timeout: 7000, maxBytes: 65536 });
+        const r = await request(B + path, { signal, timeout: 7000, maxBytes: 65536 });
         if (r.status !== 200) continue;
         body = r.body || '';
       } catch { continue; }
@@ -98,30 +100,57 @@ async function readVersion(domain, cms, home, signal) {
 }
 
 /* ── path probing ───────────────────────────────────────────── */
-async function probePaths(domain, cms, refs, findings, signal) {
+const DOWNGRADE = { critical: 'high', high: 'medium', medium: 'low', low: 'info' };
+
+async function probePaths(domain, cms, refs, findings, signal, B) {
   const rows = (DATA.CMS_PATHS || {})[cms] || [];
+  const dirlist = DATA.DIRLIST_MARKERS || [];
   let probed = 0;
   await mapLimit(rows, 6, async ([path, label, severity]) => {
     let r;
-    try { r = await request(base(domain) + path, { signal, timeout: 7000, maxBytes: 65536 }); }
+    try { r = await request(B + path, { signal, timeout: 7000, maxBytes: 65536 }); }
     catch { return; }
     probed++;
-    if (r.status !== 200) return;
+    // 401 and 403 still prove the thing is there, at reduced severity -- the
+    // same three statuses engine.py accepts. Taking only 200 missed every
+    // finding sitting behind auth.
+    if (![200, 401, 403].includes(r.status)) return;
     // Same answer as the homepage or as a path that cannot exist: not a find.
     if (refs.some(ref => ref && r.status === ref.status
         && Math.abs(r.bytes - ref.bytes) < 64)) return;
+
+    const body = r.body || '';
+
+    // An empty 200 proves nothing. PHP's own dev server answers exactly that
+    // for a directory with no index file, which reported /wp-content/plugins/
+    // and a /wp-content/backup-db/ that does not exist -- one of them critical
+    // -- on a clean install.
+    if (!body.length && !r.bytes) return;
+
+    // A directory-listing finding has to actually be a listing.
+    if (path.endsWith('/') && /listing/i.test(label)
+        && !dirlist.some(mk => body.includes(mk))) return;
+
+    // A path that answers but says the feature is switched off is not an
+    // exposure. A real WordPress returns 200 on /wp-admin/install.php with
+    // "already installed", and on maint/repair.php with "please add the
+    // following line to your wp-config" -- both refusals. Checked before the
+    // positive markers, because the refusal page satisfies those too.
+    const anti = (DATA.CMS_PATH_ANTI_MARKERS || {})[path];
+    if (anti && anti.length && anti.some(mk => body.includes(mk))) return;
 
     // Where engine.py states what proves this path, require it. A 200 alone is
     // not evidence: plenty of sites answer 200 for everything.
     const markers = (DATA.CMS_PATH_MARKERS || {})[path];
     if (markers && markers.length) {
-      const body = r.body || '';
       if (!markers.some(mk => body.includes(mk))) return;
     }
+    const sev = (r.status === 401 || r.status === 403)
+      ? (DOWNGRADE[severity] || severity) : severity;
     findings.push({
-      name: `${cmsName(cms)} ${label}`, severity, path,
-      url: base(domain) + path, status: r.status, size: r.bytes,
-      detail: `${label} reachable at ${path}`,
+      name: `${cmsName(cms)}: ${label}`, severity: sev, path,
+      url: B + path, status: r.status, size: r.bytes,
+      detail: label + (r.status === 401 || r.status === 403 ? ' [requires auth]' : ''),
       confidence: 'confirmed',
     });
   });
@@ -129,10 +158,10 @@ async function probePaths(domain, cms, refs, findings, signal) {
 }
 
 /* ── WordPress enumeration ──────────────────────────────────── */
-async function enumerateWordPress(domain, home, findings, signal) {
+async function enumerateWordPress(domain, home, findings, signal, B) {
   const users = [];
   try {
-    const j = await getJSON(`${base(domain)}/wp-json/wp/v2/users`, { signal, timeout: 8000 });
+    const j = await getJSON(`${B}/wp-json/wp/v2/users`, { signal, timeout: 8000 });
     if (Array.isArray(j)) {
       for (const u of j) if (u && u.slug) users.push(u.slug);
     }
@@ -140,7 +169,7 @@ async function enumerateWordPress(domain, home, findings, signal) {
   if (users.length) {
     findings.push({
       name: 'WordPress users enumerable via REST API', severity: 'medium',
-      path: '/wp-json/wp/v2/users', url: `${base(domain)}/wp-json/wp/v2/users`,
+      path: '/wp-json/wp/v2/users', url: `${B}/wp-json/wp/v2/users`,
       detail: `${users.length} account name(s) readable without authentication: `
         + users.slice(0, 8).join(', '),
       confidence: 'confirmed',
@@ -161,9 +190,12 @@ async function enumerateWordPress(domain, home, findings, signal) {
 
 /* ── module 28 ──────────────────────────────────────────────── */
 export async function cms(domain, signal) {
+  await ensureScheme(domain, { signal });
+  const B = base(domain);
   let home = null;
-  try { home = await request(base(domain) + '/', { signal, timeout: 10000, maxBytes: 131072 }); }
+  try { home = await request(B + '/', { signal, timeout: 10000, maxBytes: 131072 }); }
   catch { return { error: 'Target did not respond' }; }
+  if (!home || !home.status) return { error: 'Target did not respond' };
 
   const det = detect(home.body || '', home.headers || {});
   const platforms = platformFingerprint(home.body || '', home.headers || {});
@@ -205,7 +237,7 @@ export async function cms(domain, signal) {
       + `matched ${result.not_deep_scanned.join(', ')}`;
   }
 
-  const ver = await readVersion(domain, det.cms, home, signal);
+  const ver = await readVersion(domain, det.cms, home, signal, B);
   result.version = ver.version;
   result.version_source = ver.source;
   if (ver.version) {
@@ -222,15 +254,15 @@ export async function cms(domain, signal) {
   let soft404 = null;
   try {
     soft404 = await request(
-      `${base(domain)}/kumo-${Math.random().toString(36).slice(2, 10)}`,
+      `${B}/kumo-${Math.random().toString(36).slice(2, 10)}`,
       { signal, timeout: 7000, maxBytes: 32768 });
   } catch { /* a hard 404 is the good case */ }
 
   result.paths_probed = await probePaths(
-    domain, det.cms, [home, soft404], result.findings, signal);
+    domain, det.cms, [home, soft404], result.findings, signal, B);
 
   if (det.cms === 'wordpress') {
-    const e = await enumerateWordPress(domain, home, result.findings, signal);
+    const e = await enumerateWordPress(domain, home, result.findings, signal, B);
     result.users = e.users; result.plugins = e.plugins; result.themes = e.themes;
   }
 
@@ -243,6 +275,7 @@ export async function cms(domain, signal) {
 
 /* ── module 29 ──────────────────────────────────────────────── */
 export async function panels(domain, signal) {
+  await ensureScheme(domain, { signal });
   const panelDefs = DATA.PANELS || {};
   const proxied = new Set((DATA.CDN_PROXIED_PANEL_PORTS || []).map(Number));
   const panelPorts = new Set();

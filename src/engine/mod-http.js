@@ -3,15 +3,16 @@
    Shapes mirror engine.py so render.js is untouched.
    ════════════════════════════════════════════════════════════ */
 
-import { request, mapLimit } from './http.js';
+import { request, mapLimit, ensureScheme, schemeFor } from './http.js';
 import { DATA } from './data/tables.js';
 import { ruleMatches, groupByPath, isRawfilePath } from './matcher.js';
 
-const base = d => `https://${d}`;
+const base = d => `${schemeFor(d)}://${d}`;
 const rx = (p, f) => { try { return new RegExp(p, f); } catch { return null; } };
 
 /* ── Security headers ───────────────────────────────────────── */
 export async function headers(domain, signal) {
+  await ensureScheme(domain, { signal });
   const r = await request(base(domain) + '/', { signal, timeout: 12000 });
   const h = r.headers;
 
@@ -47,6 +48,7 @@ export async function headers(domain, signal) {
 
 /* ── robots / sitemap / security.txt ────────────────────────── */
 export async function robots(domain, signal) {
+  await ensureScheme(domain, { signal });
   const out = { robots: { count: 0, disallowed: [], allowed: [] }, sitemaps: [], security_txt: { found: false } };
 
   try {
@@ -85,6 +87,7 @@ export async function robots(domain, signal) {
 
 /* ── Page identity + threat posture ─────────────────────────── */
 export async function screenshot(domain, signal) {
+  await ensureScheme(domain, { signal });
   const r = await request(base(domain) + '/', { signal, timeout: 12000 });
   const b = r.body || '';
   const meta = (name) => {
@@ -116,6 +119,7 @@ export async function screenshot(domain, signal) {
 
 /* ── Tech fingerprinting (port of _whatweb_python) ──────────── */
 export async function whatweb(domain, signal) {
+  await ensureScheme(domain, { signal });
   const r = await request(base(domain) + '/', { signal, timeout: 12000 });
   const b = r.body || '', h = r.headers;
   const headerBlob = Object.entries(h).map(([k, v]) => `${k}: ${v}`).join('\n');
@@ -172,6 +176,7 @@ export async function whatweb(domain, signal) {
 
 /* ── WAF detection (port of _wafw00f_python) ────────────────── */
 export async function wafw00f(domain, signal) {
+  await ensureScheme(domain, { signal });
   const normal = await request(base(domain) + '/', { signal, timeout: 10000 }).catch(() => null);
   if (!normal) return { error: 'Target did not respond' };
 
@@ -238,6 +243,7 @@ export async function wafw00f(domain, signal) {
 
 /* ── HTTP inspector ─────────────────────────────────────────── */
 export async function httpInspect(domain, signal) {
+  await ensureScheme(domain, { signal });
   const r = await request(base(domain) + '/', { signal, timeout: 12000 });
   const h = r.headers;
 
@@ -300,6 +306,7 @@ export async function httpInspect(domain, signal) {
 
 /* ── Favicon hash (mmh3, the Shodan pivot) ──────────────────── */
 export async function favicon(domain, signal) {
+  await ensureScheme(domain, { signal });
   for (const p of DATA.FAVICON_PATHS) {
     try {
       const url = p.startsWith('http') ? p : base(domain) + p;
@@ -373,6 +380,7 @@ function mmh3(str) {
 
 /* ── Sensitive endpoints ────────────────────────────────────── */
 export async function endpoints(domain, signal) {
+  await ensureScheme(domain, { signal });
   const list = DATA.ENDPOINTS;            // [path, name, severity]
   const findings = [];
   const counts = {};
@@ -437,6 +445,7 @@ function isInteresting(r) {
 
 /* ── The 365-rule vulnerability scanner ─────────────────────── */
 export async function nuclei(domain, signal) {
+  await ensureScheme(domain, { signal });
   const byPath = groupByPath(DATA.VULN_RULES);
   const findings = [];
   const counts = {};
@@ -456,7 +465,32 @@ export async function nuclei(domain, signal) {
     catch { return; }
 
     // Same response as the homepage or as a made-up URL: not a finding.
-    if (looksLike(r, baseline) || looksLike(r, soft404)) return;
+    //
+    // Except for the homepage itself. A rule whose path IS "/" is compared
+    // against a baseline fetched from "/", so it always looks identical and
+    // every such rule was silently dead -- which hid the php2shell runtime
+    // check, confirmed against a real PHP 8.3.6. The soft-404 comparison still
+    // applies: if a made-up URL answers the same as the homepage, the server
+    // is a catch-all and the homepage proves nothing either.
+    const isRoot = path === '/' || path === '';
+    // The homepage cannot be "the same as the homepage", so the baseline
+    // comparison does not apply to it -- otherwise every rule whose path is
+    // "/" is silently dead.
+    const looksUninformative = isRoot
+      ? looksLike(r, soft404)
+      : (looksLike(r, baseline) || looksLike(r, soft404));
+
+    // A catch-all means the BODY proves nothing: the same shell comes back for
+    // every URL. It says nothing about the response HEADERS. A version matcher
+    // reading X-Powered-By is still sound, which is why a real PHP 8.3.6
+    // behind a catch-all router must still be reported. So instead of dropping
+    // the response, drop only the rules that needed the body.
+    const headerOnly = rule => (rule.matchers || []).every(m =>
+      m.type === 'version' || m.type === 'status'
+      || m.part === 'header' || m.part === 'all_headers');
+    const candidates = (byPath.get(path) || [])
+      .filter(rule => !looksUninformative || headerOnly(rule));
+    if (!candidates.length) return;
 
     // A rule for /.env or /config.php that comes back as an HTML document is
     // the SPA shell, not the file. Real config files are not web pages.
@@ -466,7 +500,7 @@ export async function nuclei(domain, signal) {
     // severe hit per path once, or a single exposure inflates the tally.
     const rank = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
     let best = null;
-    for (const rule of byPath.get(path)) {
+    for (const rule of candidates) {
       if (!ruleMatches(rule, r)) continue;
       if (!best || (rank[rule.severity] ?? 9) < (rank[best.severity] ?? 9)) best = rule;
     }
@@ -493,6 +527,7 @@ export async function nuclei(domain, signal) {
 
 /* ── API surface fuzzer ─────────────────────────────────────── */
 export async function apiFuzzer(domain, signal) {
+  await ensureScheme(domain, { signal });
   const basesFound = [];
   await mapLimit(DATA.API_BASES, 8, async p => {
     try {
@@ -552,6 +587,7 @@ export async function apiFuzzer(domain, signal) {
 
 /* ── Cloud buckets ──────────────────────────────────────────── */
 export async function cloudBuckets(domain, signal) {
+  await ensureScheme(domain, { signal });
   const label = domain.split('.')[0];
   const names = new Set();
   for (const s of DATA.BUCKET_SUFFIXES) names.add(`${label}${s}`);
@@ -585,6 +621,7 @@ export async function cloudBuckets(domain, signal) {
 
 /* ── JS secret scanner ──────────────────────────────────────── */
 export async function jsSecrets(domain, signal) {
+  await ensureScheme(domain, { signal });
   const home = await request(base(domain) + '/', { signal, timeout: 12000 });
   const files = collectScripts(home.body, base(domain), DATA.JS_SKIP_CDNS).slice(0, 25);
 
@@ -651,6 +688,7 @@ function lineAround(text, idx) {
 
 /* ── Content intelligence ───────────────────────────────────── */
 export async function contentIntel(domain, signal) {
+  await ensureScheme(domain, { signal });
   const home = await request(base(domain) + '/', { signal, timeout: 12000 });
   const files = collectScripts(home.body, base(domain), DATA.CONTENT_SKIP_CDNS).slice(0, 15);
 

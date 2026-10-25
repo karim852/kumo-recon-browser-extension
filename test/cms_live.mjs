@@ -23,6 +23,7 @@ const check = (label, ok, detail = '') => {
 };
 
 const EXPECT = {
+  'wpdone.cmstest': 'wordpress',
   'wp.cmstest': 'wordpress',
   'joomla.cmstest': 'joomla',
   'drupal.cmstest': 'drupal',
@@ -79,6 +80,19 @@ check('Magento reported as having no deep checks',
 check('...with a note instead of a blank result',
   /no deep checks/i.test(out['magento.cmstest']?.note || ''),
   out['magento.cmstest']?.note);
+
+console.log(`\n${B}A correctly installed WordPress reports nothing${X}  `
+  + `${D}(real 6.7.10 refusal pages)${X}`);
+const done = out['wpdone.cmstest'] || {};
+const dnames = (done.findings || []).map(f => f.name);
+check('still identified as WordPress', done.cms === 'wordpress');
+check("an installer saying 'already installed' is not an exposure",
+  !dnames.some(n => /installer/i.test(n)), JSON.stringify(dnames));
+check('a repair page saying it is disabled is not an exposure',
+  !dnames.some(n => /repair/i.test(n)), JSON.stringify(dnames));
+check('nothing above low severity on a stock install',
+  (done.findings || []).every(f => ['low', 'info'].includes(f.severity)),
+  JSON.stringify((done.findings || []).map(f => [f.severity, f.name])));
 
 console.log(`\n${B}WordPress enumeration${X}`);
 check('users enumerated via the REST API',

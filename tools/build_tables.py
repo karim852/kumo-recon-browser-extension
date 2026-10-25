@@ -176,6 +176,8 @@ DATA = {
     "CMS_SIGNALS":              G("_CMS_SIGNALS"),
     "CMS_PATHS":                G("_CMS_PATHS"),
     "CMS_PATH_MARKERS":         G("_CMS_PATH_MARKERS"),
+    "CMS_PATH_ANTI_MARKERS":    G("_CMS_PATH_ANTI_MARKERS"),
+    "DIRLIST_MARKERS":          G("_DIRLIST_MARKERS"),
     "CMS_VERSION_SOURCES":      G("_CMS_VERSION_SOURCES"),
     "CMS_NAMES":                G("_CMS_NAMES"),
     "CMS_DEEP_SCANNED":         G("_CMS_DEEP_SCANNED"),

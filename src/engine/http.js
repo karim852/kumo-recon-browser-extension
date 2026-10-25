@@ -188,6 +188,39 @@ export async function head(url, opts = {}) {
 export const hostOf = u => { try { return new URL(u).host; } catch { return u; } };
 
 /* Run jobs with a cap, collecting results; never rejects. */
+/* ── which scheme the target actually answers on ──────────────
+   Every module used to hard-code https://. On an http-only
+   target that means ECONNREFUSED on 443, and the whole scan
+   reports "did not respond" -- found by pointing the engine at a
+   real WordPress served over http. engine.py tries https and
+   then http, so this does too.
+
+   Resolved once per domain per scan and cached, so the fallback
+   costs a single extra request and only when https genuinely
+   fails. https is still always tried first, so nothing about an
+   https target changes. */
+const _schemeCache = new Map();
+
+export async function ensureScheme(domain, opts = {}) {
+  if (_schemeCache.has(domain)) return _schemeCache.get(domain);
+  for (const scheme of ['https', 'http']) {
+    try {
+      const r = await request(`${scheme}://${domain}/`,
+        { signal: opts.signal, timeout: 8000, maxBytes: 2048 });
+      if (r && r.status) {
+        _schemeCache.set(domain, scheme);
+        return scheme;
+      }
+    } catch { /* try the next scheme */ }
+  }
+  _schemeCache.set(domain, 'https');   // nothing answered; report against https
+  return 'https';
+}
+
+export const schemeFor = domain => _schemeCache.get(domain) || 'https';
+
+export function resetSchemeCache() { _schemeCache.clear(); }
+
 export async function mapLimit(items, limit, fn) {
   const out = new Array(items.length);
   let i = 0;
