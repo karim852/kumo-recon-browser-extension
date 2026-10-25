@@ -65,7 +65,10 @@ const label = x => {
   return String(x.path ?? x.name ?? x.subdomain ?? x.host ?? x.url ?? x.id ??
                 x.cve ?? x.value ?? x.email ?? x.record ?? JSON.stringify(x));
 };
-const list2 = (arr, cls) => (arr || [])
+// RDAP and the other third-party APIs are not always shape-correct: a server
+// that answers "status": "active" where the spec says a list would otherwise
+// crash the renderer, and the card prints "render failed" instead of the data.
+const list2 = (arr, cls) => (Array.isArray(arr) ? arr : arr == null ? [] : [arr])
   .map(x => `<span class="${cls || 'tag'}">${esc(label(x))}</span>`).join('');
 
 /* ════════════════════════════════════════════════════════════

@@ -87,13 +87,14 @@ for node in ast.walk(tree):
 
 # ── re.compile(...) secret patterns ───────────────────────────────────────
 def py_regex_to_js(p):
-    """Python inline (?i) has no JS form; hoist it to a flag."""
+    """Python inline (?imsx) has no JS form; hoist what JS supports to flags."""
     flags = ""
-    if "(?i)" in p:
-        flags += "i"
-        p = p.replace("(?i)", "")
+    for inline, js_flag in (("(?i)", "i"), ("(?m)", "m"), ("(?s)", "s"), ("(?x)", "")):
+        if inline in p:
+            flags += js_flag
+            p = p.replace(inline, "")
     p = re.sub(r"\(\?P<[^>]+>", "(", p)      # named groups -> plain groups
-    return p, flags
+    return p, "".join(dict.fromkeys(flags))
 
 
 secret_patterns = []

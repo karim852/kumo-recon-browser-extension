@@ -13,11 +13,24 @@
 import { DATA } from './data/tables.js';
 
 const reCache = new Map();
+
+/* Rules come from engine.py, where a pattern may carry Python's inline
+   (?im) prefix. JS has no inline form and throws on it, so the group is
+   hoisted to real flags. Without this, a rule like env-file compiles to
+   null and silently never fires -- an exposed .env goes unreported. */
+function hoistInlineFlags(pattern, flags) {
+  const m = /^\(\?([imsx]+)\)/.exec(pattern);
+  if (!m) return [pattern, flags];
+  const extra = m[1].replace(/x/g, '');     // Python's verbose flag has no JS form
+  return [pattern.slice(m[0].length), [...new Set(flags + extra)].join('')];
+}
+
 function rx(pattern, flags = '') {
   const key = pattern + '\u0000' + flags;
   let r = reCache.get(key);
   if (r === undefined) {
-    try { r = new RegExp(pattern, flags); }
+    const [pat, fl] = hoistInlineFlags(String(pattern), flags);
+    try { r = new RegExp(pat, fl); }
     catch { r = null; }          // a bad pattern must never kill a scan
     reCache.set(key, r);
   }

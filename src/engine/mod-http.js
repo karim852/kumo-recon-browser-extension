@@ -628,16 +628,18 @@ export async function jsSecrets(domain, signal) {
   const secrets = [];
   const seen = new Set();
   const scan = (text, where) => {
-    for (const p of DATA.SECRET_PATTERNS) {
-      const re = rx(p.re, (p.flags || '') + 'g');
+    for (const row of DATA.SECRET_PATTERNS) {   // [pattern, label, severity, flags]
+      const [pattern, label, severity, flags] = row;
+      const re = rx(pattern, (flags || '') + 'g');
       if (!re) continue;
       for (const m of text.matchAll(re)) {
         const raw = m[0];
-        const key = p.label + '\u0000' + raw.slice(0, 64);
+        if (!raw) continue;               // a pattern that matches "" is not a secret
+        const key = label + '\u0000' + raw.slice(0, 64);
         if (seen.has(key)) continue;
         seen.add(key);
         secrets.push({
-          type: p.label, severity: p.severity,
+          type: label, severity,
           value: redact(raw),
           file: where,
           line: lineAround(text, m.index),
