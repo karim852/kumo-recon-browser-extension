@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Kumo \u8718\u86db \u2014 Domain Recon",
   "short_name": "Kumo",
-  "version": "1.0.0",
-  "description": "Point 25 recon modules at the tab you're on. DNS, certificates, tech fingerprints, exposed paths and 358 vulnerability checks, all in your browser.",
+  "version": "1.1.0",
+  "description": "Point 27 recon modules at the tab you're on. DNS, certificates, tech fingerprints, CMS and control-panel checks, exposed paths and 420 vulnerability checks, all in your browser.",
   "author": "k0r1m",
   "homepage_url": "https://demo-kumo-kage.vercel.app/",
   "action": {

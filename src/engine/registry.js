@@ -10,6 +10,7 @@
 
 import * as I from './mod-intel.js';
 import * as H from './mod-http.js';
+import * as C from './mod-cms.js';
 
 const M = (key, description, icon, run) => ({ key, description, icon, run });
 
@@ -24,8 +25,8 @@ export const MODULES = [
   M('ports', 'Open Ports (passive, via Shodan)', '🔌', ({ domain, signal }) => I.ports(domain, signal)),
   M('whatweb', 'Deep Tech Detection', '🧬', ({ domain, signal }) => H.whatweb(domain, signal)),
   M('robots', 'Robots/Security/Sitemap', '🤖', ({ domain, signal }) => H.robots(domain, signal)),
-  M('endpoints', 'Sensitive Endpoints (142 paths)', '📂', ({ domain, signal }) => H.endpoints(domain, signal)),
-  M('nuclei', 'Vulnerability Scanner (358 checks)', '☣', ({ domain, signal }) => H.nuclei(domain, signal)),
+  M('endpoints', 'Sensitive Endpoints (141 paths)', '📂', ({ domain, signal }) => H.endpoints(domain, signal)),
+  M('nuclei', 'Vulnerability Scanner (420 checks)', '☣', ({ domain, signal }) => H.nuclei(domain, signal)),
   M('shodan', 'Shodan InternetDB + CVEs', '🛰', ({ domain, signal }) => I.shodan(domain, signal)),
   M('censys', 'Censys Hosts + Certificates', '📡', ({ domain, signal }) => I.censys(domain, signal)),
   M('subdomains', 'Subdomain Discovery', '🕸', ({ domain, signal }) => I.subdomains(domain, signal)),
@@ -39,6 +40,12 @@ export const MODULES = [
   M('content_intel', 'Content Intel (JS/HTML extractor)', '🧠', ({ domain, signal }) => H.contentIntel(domain, signal)),
   M('http_inspect', 'HTTP Inspector', '📶', ({ domain, signal }) => H.httpInspect(domain, signal)),
   M('api_fuzzer', 'API Endpoint Fuzzer', '⚙', ({ domain, signal }) => H.apiFuzzer(domain, signal)),
+  M('cms', 'CMS Deep Scan (WP/Joomla/Drupal)', '🧱', ({ domain, signal }) => C.cms(domain, signal)),
+  // PASSIVE, like `ports`: a page cannot open a TCP socket, and panels on
+  // 2083/8443/10000 almost always present a self-signed certificate that
+  // fetch() refuses. Shodan supplies which panel ports are open; HTTP confirms
+  // the interface where it can, and says so when it cannot.
+  M('panels', 'Hosting Control Panels (passive + HTTP)', '🎛', ({ domain, signal }) => C.panels(domain, signal)),
 ];
 
 export const MODULE_KEYS = MODULES.map(m => m.key);
@@ -52,6 +59,7 @@ export const QUICK_SET = [
 ];
 
 export const SHORT = {
+  panels: 'panels', cms: 'cms',
   screenshot: 'identity', email_harvest: 'emails', breachintel: 'breach',
   cloud_buckets: 'buckets', js_secrets: 'js-keys', content_intel: 'content',
   http_inspect: 'http', api_fuzzer: 'api-fuzz', subdomains: 'subs',

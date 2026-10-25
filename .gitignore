@@ -13,3 +13,7 @@ node_modules/
 __pycache__/
 *.pyc
 web-ext-artifacts/
+
+# parity fixtures, regenerated from engine.py by test/run_all.sh
+test/rule_cases.json
+test/version_cases.json

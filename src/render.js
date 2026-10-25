@@ -242,6 +242,82 @@ R.nuclei = d => {
   return findingCard(d, 'checks');
 };
 
+R.cms = d => {
+  // A platform can be identified without deep checks existing for it. "No CMS"
+  // would be wrong there, and an empty card reads as a clean result.
+  if (!d.cms) {
+    const nd = d.not_deep_scanned || [];
+    if (nd.length) {
+      return {
+        html: kv('Platform', list2(nd, 'badge'))
+          + `<div class="c-warn" style="font-size:11px;margin-top:6px">No deep checks for `
+          + `${nd.length > 1 ? 'these platforms' : 'this platform'} yet</div>`
+          + `<div class="c-dim" style="font-size:10px;margin-top:3px">Deep checks cover `
+          + `WordPress, Joomla and Drupal.</div>`,
+        sub: esc(nd[0]),
+      };
+    }
+    return { html: empty(d.note || 'No CMS identified.'), sub: 'none' };
+  }
+
+  let h = kv('CMS', `<span class="c-cyan" style="font-weight:700">${esc(d.cms_name || d.cms)}</span>`
+    + ` <span class="badge ${d.confidence === 'high' ? 'b-ok' : 'b-info'}">${esc(d.confidence)}</span>`);
+  if (d.version) h += kv('Version', `<span class="c-yellow mono">${esc(d.version)}</span>`
+    + ` <span class="c-dim" style="font-size:9px">from ${esc(d.version_source || '')}</span>`);
+  if ((d.signals || []).length) h += kv('Detected by',
+    `<span class="c-dim" style="font-size:10px">${esc(d.signals.join(' · '))}</span>`);
+  if ((d.addons || []).length) h += kv('Also running', list2(d.addons, 'badge'));
+  if (d.platform_conflict) h += kv('Note',
+    `<span class="c-warn" style="font-size:10px">${esc(d.platform_conflict)}</span>`);
+  if ((d.users || []).length) h += kv('Users', list2(d.users.slice(0, 8), 'tag'));
+  const plug = Object.keys(d.plugins || {});
+  if (plug.length) h += kv('Plugins', list2(
+    plug.slice(0, 8).map(k => d.plugins[k] ? `${k} ${d.plugins[k]}` : k), 'tag'));
+  const th = Object.keys(d.themes || {});
+  if (th.length) h += kv('Themes', list2(
+    th.slice(0, 4).map(k => d.themes[k] ? `${k} ${d.themes[k]}` : k), 'tag'));
+
+  const f = d.findings || [];
+  if (f.length) {
+    h += sevChips(d.severity_counts) + findings(f, 6, x => ({
+      title: esc(x.name),
+      sub: `${esc(x.path || '')}${x.confidence === 'version-inference'
+        ? ' <span class="c-dim">[inferred]</span>' : ''}`,
+    }));
+  }
+  h += `<div class="c-dim" style="font-size:9px;margin-top:6px">`
+    + `${d.paths_probed || 0} ${esc(d.cms)} path(s) probed</div>`;
+  return { html: h, sub: `${esc(d.cms_name || d.cms)}${d.version ? ' ' + esc(d.version) : ''}` };
+};
+
+R.panels = d => {
+  let h = '';
+  const p = d.panels || [], un = d.unconfirmed || [];
+  if (d.cdn_note) h += `<div class="c-dim" style="font-size:10px;margin-bottom:5px">`
+    + `${esc(d.cdn_note)}</div>`;
+  if (p.length) {
+    h += sevChips(d.severity_counts) + findings(d.findings || [], 6, x => ({
+      title: esc(x.name),
+      sub: `${esc(x.url || '')}`,
+    }));
+  }
+  if (un.length) {
+    // Shodan saw the port open; the browser could not read it. Say which, and
+    // never present it as a confirmed panel.
+    h += kv('Port open, not confirmed', list2(un.map(u => `:${u.port}`), 'badge'))
+      + `<div class="c-dim" style="font-size:10px;margin-top:3px">`
+      + `${esc(un[0].reason)}</div>`;
+  }
+  if (!p.length && !un.length) {
+    return { html: empty(d.note || 'No control panel ports seen open.'), sub: 'none' };
+  }
+  h += `<div class="c-dim" style="font-size:9px;margin-top:6px">${esc(d.method || '')}</div>`;
+  return {
+    html: h,
+    sub: p.length ? `${p.length} panel${p.length === 1 ? '' : 's'}` : `${un.length} unconfirmed`,
+  };
+};
+
 R.shodan = d => {
   const s = d.summary || {}, ips = d.ips || {};
   const nCrit = count(s.critical_cves);

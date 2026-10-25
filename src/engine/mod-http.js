@@ -5,7 +5,7 @@
 
 import { request, mapLimit } from './http.js';
 import { DATA } from './data/tables.js';
-import { ruleMatches, groupByPath } from './matcher.js';
+import { ruleMatches, groupByPath, isRawfilePath } from './matcher.js';
 
 const base = d => `https://${d}`;
 const rx = (p, f) => { try { return new RegExp(p, f); } catch { return null; } };
@@ -118,7 +118,8 @@ export async function screenshot(domain, signal) {
 export async function whatweb(domain, signal) {
   const r = await request(base(domain) + '/', { signal, timeout: 12000 });
   const b = r.body || '', h = r.headers;
-  const hay = Object.entries(h).map(([k, v]) => `${k}: ${v}`).join('\n') + '\n' + b;
+  const headerBlob = Object.entries(h).map(([k, v]) => `${k}: ${v}`).join('\n');
+  const hay = headerBlob + '\n' + b;
   const detected = {};
   const add = (cat, val) => {
     if (!val) return;
@@ -126,11 +127,27 @@ export async function whatweb(domain, signal) {
     if (!detected[cat].includes(val)) detected[cat].push(val);
   };
 
+  // Where a pattern is allowed to match. A product name printed in page text
+  // is prose, not proof: a blog comparing CMS platforms, or a host selling
+  // them, prints every brand in the table. Evidence that only means something
+  // as a header or cookie is scoped to headers and never read from the body.
+  //   ["h", pat] -> headers and cookies   ["b", pat] -> body   pat -> either
+  // A scoped pattern arrives from engine.py as a two-element array; passing
+  // one to RegExp would coerce it to "h,pattern" and match nothing real.
+  const sigHit = (pat) => {
+    let target = hay, src = pat;
+    if (Array.isArray(pat)) {
+      src = pat[1];
+      target = pat[0] === 'h' ? headerBlob : b;
+    }
+    const re = rx(src, 'i');
+    return !!(re && re.test(target));
+  };
+
   for (const [cat, sigs] of Object.entries(DATA.WHATWEB_SIGNATURES)) {
     for (const [name, pats] of Object.entries(sigs)) {
-      for (const p of [].concat(pats)) {
-        const re = rx(p, 'i');
-        if (re && re.test(hay)) { add(cat, name); break; }
+      for (const pat of (Array.isArray(pats) ? pats : [pats])) {
+        if (sigHit(pat)) { add(cat, name); break; }
       }
     }
   }
@@ -414,7 +431,9 @@ function isInteresting(r) {
 }
 
 /* Does this path name a file rather than a route? */
-const looksLikeFile = p => /\.[a-z0-9]{1,6}($|\?)/i.test(p) || /\/\.[a-z]/i.test(p);
+// Was a loose "any short extension" regex, which treated /admin.php as a raw
+// file and so skipped a real HTML admin panel. isRawfilePath is engine.py's
+// own rule, imported rather than approximated.
 
 /* ── The 365-rule vulnerability scanner ─────────────────────── */
 export async function nuclei(domain, signal) {
@@ -441,7 +460,7 @@ export async function nuclei(domain, signal) {
 
     // A rule for /.env or /config.php that comes back as an HTML document is
     // the SPA shell, not the file. Real config files are not web pages.
-    if (looksLikeFile(path) && isHtml(r.body)) return;
+    if (isRawfilePath(path) && isHtml(r.body)) return;
 
     // The base and extended rule sets overlap on some paths. Report the most
     // severe hit per path once, or a single exposure inflates the tally.

@@ -24,8 +24,10 @@ const TIMEOUTS = {
   js_secrets: 300000, api_fuzzer: 300000, content_intel: 300000,
   cloud_buckets: 300000,
   subdomains: 360000, brute: 360000, breachintel: 360000,
-  // vulnerability scanner — 358 path checks
+  // vulnerability scanner — 420 path checks
   nuclei: 600000,
+  // module 28 probes one CMS's own paths; module 29 is mostly passive
+  cms: 300000, panels: 180000,
 };
 const DEFAULT_TIMEOUT = 180000;   // anything unlisted
 const ABS_CAP = 720000;           // hard ceiling per module (12 min)

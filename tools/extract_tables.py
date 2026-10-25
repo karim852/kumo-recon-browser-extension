@@ -19,6 +19,28 @@ eng = importlib.util.module_from_spec(spec)
 sys.modules["kumo_engine"] = eng
 spec.loader.exec_module(eng)
 
+def _jsonable(v):
+    """
+    Sets and tuples have no JSON form, and `default=str` turned them into the
+    string "{2082, 2083}" -- which shipped to the extension as a table it could
+    not iterate. Sets become sorted arrays, tuples become arrays, recursively.
+    """
+    if isinstance(v, (set, frozenset)):
+        try:
+            return sorted(v)
+        except TypeError:
+            return sorted(v, key=str)
+    if isinstance(v, tuple):
+        return [_jsonable(x) for x in v]
+    if isinstance(v, list):
+        return [_jsonable(x) for x in v]
+    if isinstance(v, dict):
+        return {str(k): _jsonable(x) for k, x in v.items()}
+    if isinstance(v, (str, int, float, bool)) or v is None:
+        return v
+    return str(v)
+
+
 # ── which module-level names are data worth shipping ────────────────────
 SKIP_TYPES = (type(sys), type(lambda: 0), type(re.compile('')))
 tables = {}
@@ -35,7 +57,7 @@ for name in dir(eng):
     if not name.isupper():
         continue
     try:
-        tables[name] = json.loads(json.dumps(v, default=str))
+        tables[name] = json.loads(json.dumps(_jsonable(v)))
     except Exception as e:
         print(f"  ! {name}: not serialisable ({e})")
 
