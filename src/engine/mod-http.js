@@ -642,7 +642,7 @@ export async function jsSecrets(domain, signal) {
           type: label, severity,
           value: redact(raw),
           file: where,
-          line: lineAround(text, m.index),
+          line: lineAround(text, m.index, raw),
         });
         if (secrets.length > 120) return;
       }
@@ -681,11 +681,19 @@ function redact(s) {
   return s.slice(0, 6) + '*'.repeat(Math.min(16, s.length - 10)) + s.slice(-4);
 }
 
-function lineAround(text, idx) {
+/* The surrounding line, for context. It contains the credential itself, so
+   redact() has to reach into it too -- masking the value field and then
+   printing the same secret verbatim one field over defeats the point. The
+   masking happens before the 200-char cap, so no cap can leave a whole one
+   behind. engine.py prints these in clear text by design; the extension
+   does not, which is why this differs from the CLI. */
+function lineAround(text, idx, secret) {
   const start = text.lastIndexOf('\n', idx) + 1;
   let end = text.indexOf('\n', idx);
   if (end === -1) end = Math.min(text.length, idx + 160);
-  return text.slice(start, Math.min(end, start + 200)).trim();
+  let line = text.slice(start, end);
+  if (secret) line = line.split(secret).join(redact(secret));
+  return line.slice(0, 200).trim();
 }
 
 /* ── Content intelligence ───────────────────────────────────── */

@@ -6,6 +6,11 @@
 # The parity suites regenerate their cases from engine.py first, so they test
 # the current engine rather than a snapshot. If engine.py's detection logic
 # changes and the JS port is not updated, these fail.
+#
+# fixture_live.mjs needs neither repo: it serves test/fixture_site.py and
+# asserts on what the modules FIND, which is the gap the parity and smoke
+# suites leave -- a module can agree with engine.py on every verdict, render
+# every card, and still detect nothing at all.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 KUMO=${1:-../kumo-domain-recon-tool}
@@ -27,6 +32,7 @@ if [ ! -d "$KUMO" ]; then
   printf 'Running the suites that do not need it:\n'
   run "every renderer executes" node test/render_smoke.mjs
   run "fingerprints must not read prose" node test/fingerprint_parity.mjs
+  run "planted leaks must still be found" node test/fixture_live.mjs
   exit "$fail"
 fi
 
@@ -39,6 +45,7 @@ run "rule playbook parity with engine.py" node test/rule_parity.mjs
 run "version matcher parity with engine.py" node test/version_parity.mjs
 run "fingerprints must not read prose"      node test/fingerprint_parity.mjs
 run "every renderer executes"               node test/render_smoke.mjs
+run "planted leaks must still be found"     node test/fixture_live.mjs
 
 if [ "$fail" -eq 0 ]; then
   printf '\n\033[92mall suites passed\033[0m\n'

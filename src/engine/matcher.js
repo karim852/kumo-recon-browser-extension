@@ -37,6 +37,11 @@ function rx(pattern, flags = '') {
   return r;
 }
 
+/* Whether the matcher can actually use a pattern. rx() returns null for one
+   it cannot compile, and a rule holding such a pattern can never fire -- so
+   the parity suite asserts on this rather than re-deriving the rules here. */
+export const patternCompiles = (pattern, flags = 'm') => rx(pattern, flags) !== null;
+
 /* What a matcher looks at. */
 function part(res, which) {
   switch (which) {
