@@ -640,9 +640,9 @@ export async function jsSecrets(domain, signal) {
         seen.add(key);
         secrets.push({
           type: label, severity,
-          value: redact(raw),
+          value: raw.slice(0, 200),
           file: where,
-          line: lineAround(text, m.index, raw),
+          line: lineAround(text, m.index),
         });
         if (secrets.length > 120) return;
       }
@@ -674,26 +674,16 @@ function collectScripts(html, origin, skip) {
   return [...out];
 }
 
-/* Never print a whole live credential back to the user. */
-function redact(s) {
-  s = String(s);
-  if (s.length <= 12) return s;
-  return s.slice(0, 6) + '*'.repeat(Math.min(16, s.length - 10)) + s.slice(-4);
-}
-
-/* The surrounding line, for context. It contains the credential itself, so
-   redact() has to reach into it too -- masking the value field and then
-   printing the same secret verbatim one field over defeats the point. The
-   masking happens before the 200-char cap, so no cap can leave a whole one
-   behind. engine.py prints these in clear text by design; the extension
-   does not, which is why this differs from the CLI. */
-function lineAround(text, idx, secret) {
+/* The surrounding line, for context, exactly as it appears in the file.
+   Secrets are reported whole and unmasked, by choice: whoever ran the scan
+   needs the real value to confirm the finding, check whether the key is
+   live, and put it in a report. A masked value proves nothing. The only
+   limit is a 200-char cap so one enormous match cannot flood a card. */
+function lineAround(text, idx) {
   const start = text.lastIndexOf('\n', idx) + 1;
   let end = text.indexOf('\n', idx);
   if (end === -1) end = Math.min(text.length, idx + 160);
-  let line = text.slice(start, end);
-  if (secret) line = line.split(secret).join(redact(secret));
-  return line.slice(0, 200).trim();
+  return text.slice(start, Math.min(end, start + 200)).trim();
 }
 
 /* ── Content intelligence ───────────────────────────────────── */

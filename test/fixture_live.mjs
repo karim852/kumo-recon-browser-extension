@@ -73,8 +73,13 @@ check('every secret carries a type and a severity',
   (js.secrets || []).length > 0 && (js.secrets || []).every(s => s.type && s.severity));
 check('no secret is reported with an empty value',
   (js.secrets || []).every(s => s.value));
-check('the live credential is redacted, never printed whole',
-  !JSON.stringify(js).includes('AKIAIOSFODNN7EXAMPLE'));
+// Reported whole, by choice: a masked value cannot be confirmed or reported.
+check('the credential is reported in full, not masked',
+  (js.secrets || []).some(s => s.value === 'AKIAIOSFODNN7EXAMPLE'));
+check('the context line shows the real line from the file',
+  (js.secrets || []).some(s => (s.line || '').includes('AKIAIOSFODNN7EXAMPLE')));
+check('nothing in the output is masked with asterisks',
+  !/\*{4,}/.test(JSON.stringify(js.secrets || [])));
 check('attributed to the file it came from', (js.secrets || []).some(s => /app\.js$/.test(s.file || '')),
   `${js.secrets?.[0]?.file || ''}`);
 
